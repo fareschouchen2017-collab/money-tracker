@@ -12,6 +12,29 @@ const exportCsvBtn = document.getElementById('export-csv');
 const exportJsonBtn = document.getElementById('export-json');
 const importBtn = document.getElementById('import-btn');
 const importFile = document.getElementById('import-file');
+const syncStatus = document.getElementById('sync-status');
+
+// --- Firebase setup ---
+// Requires firebase-config.js (loaded before this file) with your project's config.
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Lets the app keep working offline and sync automatically when back online
+db.enablePersistence().catch((err) => {
+    console.warn('Offline persistence not enabled:', err.code);
+});
+
+// Everyone using this app (no login) reads/writes this one shared collection.
+const transactionsRef = db.collection('shared').doc('expensify').collection('transactions');
+
+function setSyncStatus(message, ok) {
+    syncStatus.textContent = message;
+    syncStatus.classList.toggle('sync-ok', ok === true);
+    syncStatus.classList.toggle('sync-warn', ok === false);
+}
+
+window.addEventListener('online', () => setSyncStatus('Online - synced', true));
+window.addEventListener('offline', () => setSyncStatus('Offline - saving locally', false));
 
 // Category options per transaction type
 const CATEGORIES = {
@@ -32,12 +55,6 @@ const CATEGORY_COLORS = {
 };
 
 let transactions = [];
-try {
-    const stored = JSON.parse(localStorage.getItem('transactions'));
-    if (Array.isArray(stored)) transactions = stored;
-} catch (e) {
-    console.error('Could not read saved transactions, starting fresh.', e);
-}
 
 let chart = null;
 
@@ -80,9 +97,10 @@ function addTransaction(e) {
         date: new Date().toISOString()
     };
 
-    transactions.push(transaction);
-    updatelocalStorage();
-    init();
+    transactionsRef.doc(transaction.id).set(transaction).catch((err) => {
+        console.error('Could not save transaction:', err);
+        alert('Could not save. It will retry automatically once you are back online.');
+    });
 
     text.value = '';
     amount.value = '';
@@ -193,14 +211,10 @@ function updateChart() {
 
 // delete transaction by ID
 function removeTransaction(id) {
-    transactions = transactions.filter(transaction => transaction.id !== id);
-    updatelocalStorage();
-    init();
-}
-
-// Update local storage transactions
-function updatelocalStorage() {
-    localStorage.setItem('transactions', JSON.stringify(transactions));
+    transactionsRef.doc(id).delete().catch((err) => {
+        console.error('Could not delete transaction:', err);
+        alert('Could not delete right now. Try again once you are back online.');
+    });
 }
 
 // Export transactions as a CSV file
@@ -253,26 +267,27 @@ function importJSON(file) {
         }
 
         const replace = confirm(
-            'Replace your current transactions with this backup?\n\nOK = replace all\nCancel = merge with existing'
+            'Replace the shared data with this backup?\n\nOK = replace all (deletes everything currently synced)\nCancel = merge with existing'
         );
 
+        const batch = db.batch();
+
         if (replace) {
-            transactions = incoming;
-        } else {
-            const existingIds = new Set(transactions.map(t => t.id));
-            incoming.forEach(t => {
-                if (!existingIds.has(t.id)) {
-                    transactions.push(t);
-                } else {
-                    // avoid ID collisions when merging
-                    transactions.push({ ...t, id: generateID() });
-                }
-            });
+            transactions.forEach(t => batch.delete(transactionsRef.doc(t.id)));
         }
 
-        updatelocalStorage();
-        init();
-        alert('Import complete.');
+        const existingIds = new Set(replace ? [] : transactions.map(t => t.id));
+        incoming.forEach(t => {
+            const id = existingIds.has(t.id) ? generateID() : (t.id || generateID());
+            batch.set(transactionsRef.doc(id), { ...t, id });
+        });
+
+        batch.commit()
+            .then(() => alert('Import complete.'))
+            .catch((err) => {
+                console.error('Import failed:', err);
+                alert('Import failed. Check your connection and try again.');
+            });
     };
     reader.onerror = () => alert('Could not read that file.');
     reader.readAsText(file);
@@ -314,4 +329,17 @@ importFile.addEventListener('change', (e) => {
 });
 
 populateCategories();
-init();
+
+// Live sync: fires immediately with current data, then again whenever
+// this device or any other device adds/edits/deletes a transaction.
+transactionsRef.orderBy('date', 'desc').onSnapshot(
+    (snapshot) => {
+        transactions = snapshot.docs.map(doc => doc.data());
+        init();
+        setSyncStatus(navigator.onLine ? 'Online - synced' : 'Offline - showing last sync', navigator.onLine);
+    },
+    (err) => {
+        console.error('Sync error:', err);
+        setSyncStatus('Sync error - check firebase-config.js', false);
+    }
+);

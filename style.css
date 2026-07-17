@@ -233,6 +233,22 @@ select {
     margin: 20px 0;
 }
 
+/* Sync status */
+.sync-status {
+    text-align: center;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #999;
+    margin: 0 0 10px 0;
+}
+.sync-status.sync-ok {
+    color: #2ecc71;
+}
+.sync-status.sync-warn {
+    color: #e67e22;
+}
+
 /* Export buttons */
 .export-row {
     display: flex;

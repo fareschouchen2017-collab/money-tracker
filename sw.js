@@ -4,6 +4,7 @@ const ASSETS = [
   './index.html',
   './style.css',
   './script.js',
+  './firebase-config.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
