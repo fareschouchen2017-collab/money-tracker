@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expense Tracker</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="theme-color" content="#4a249d" />
+</head>
+<body>
+    <header>
+        <h2>Expensify - Expense Tracker</h2>
+    </header>
+    <div class="container">
+        <h4> Your Balance </h4>
+        <h1 id="balance">$0.00</h1>
+        <div class="inc-exp-container">
+            <div>
+                <h4>Income</h4>
+                <p id="money-plus" class="money plus">+$0.00</p>
+            </div>
+            <div>
+                <h4>Expense</h4>
+                <p id="money-minus" class="money minus">-$0.00</p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h3>Spending by Category</h3>
+            <canvas id="chart" height="220"></canvas>
+            <p id="chart-empty" class="chart-empty">Add an expense to see your breakdown</p>
+        </div>
+
+        <h3>History</h3>
+        <div class="export-row">
+            <button id="export-csv" class="btn-small" type="button">Export CSV</button>
+            <button id="export-json" class="btn-small" type="button">Export JSON</button>
+            <button id="import-btn" class="btn-small" type="button">Import</button>
+            <input type="file" id="import-file" accept="application/json" hidden />
+        </div>
+        <ul id="list" class="list">
+            <!-- List items of previous incomes and expenses -->
+        </ul>
+
+        <h3>Add new transaction</h3>
+        <form id="form">
+            <div class="form-control">
+                <label for="text">Name</label>
+                <input type="text" id="text" placeholder="enter name of transaction">
+            </div>
+            <div class="form-control">
+                <label for="amount">Amount</label>
+                <input type="number" id="amount" step="0.01" min="0" placeholder="enter amount of transaction">
+            </div>
+
+            <div class="form-control type-toggle">
+                <label class="radio-option">
+                    <input type="radio" name="type" value="expense" checked>
+                    <span>Expense</span>
+                </label>
+                <label class="radio-option">
+                    <input type="radio" name="type" value="income">
+                    <span>Income</span>
+                </label>
+            </div>
+
+            <div class="form-control">
+                <label for="category">Category</label>
+                <select id="category"></select>
+            </div>
+
+            <button class="btn" type="submit">Add Transaction</button>
+        </form>
+    </div>
+    <!-- Chart.js for category breakdown -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+    <!-- JS -->
+     <script src="script.js"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js').catch((err) => {
+            console.error('Service worker registration failed:', err);
+          });
+        });
+      }
+    </script>
+</body>
+</html>
